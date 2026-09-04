@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Tarot Studio AI</title>
+  <style>
+    :root{
+      --bg:#f7f3fb;
+      --panel:#ffffff;
+      --panel-2:#fbf8fe;
+      --text:#2a2033;
+      --muted:#766b82;
+      --line:#e7dff0;
+      --primary:#7b5aa6;
+      --primary-2:#9a79c4;
+      --danger:#b55b6c;
+      --shadow:0 18px 50px rgba(75,52,102,.10);
+      --radius:22px;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:
+      radial-gradient(circle at top left,#efe5fa 0,transparent 32%),
+      linear-gradient(180deg,#f8f5fb,#f6f2f8 60%,#f9f7fb);
+      color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+      min-height:100%;
+    }
+    body{min-height:100vh}
+    button,input,textarea,select{font:inherit}
+    button{cursor:pointer}
+    .app{
+      width:min(1480px,100%);
+      margin:0 auto;
+      padding:18px;
+      min-height:100vh;
+    }
+    .topbar{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:14px 18px 18px;
+    }
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{
+      width:44px;height:44px;border-radius:14px;
+      display:grid;place-items:center;
+      background:linear-gradient(145deg,#6f4e97,#a47cc7);
+      color:#fff;font-size:22px;box-shadow:0 10px 25px rgba(111,78,151,.25)
+    }
+    .brand h1{font-size:20px;margin:0}
+    .brand p{margin:2px 0 0;color:var(--muted);font-size:13px}
+    .status{
+      display:flex;align-items:center;gap:8px;color:#665773;font-size:13px;
+      padding:8px 12px;border:1px solid var(--line);background:rgba(255,255,255,.72);
+      border-radius:999px;
+    }
+    .dot{width:8px;height:8px;background:#62b68c;border-radius:50%}
+    .layout{
+      display:grid;grid-template-columns:minmax(0,460px) minmax(0,1fr);gap:18px;
+    }
+    .card{
+      background:rgba(255,255,255,.92);
+      border:1px solid rgba(225,214,236,.9);
+      box-shadow:var(--shadow);
+      border-radius:var(--radius);
+      overflow:hidden;
+    }
+    .form-card{padding:18px}
+    .section{padding:16px 0;border-bottom:1px solid var(--line)}
+    .section:first-child{padding-top:0}
+    .section:last-child{border-bottom:none;padding-bottom:0}
+    .section-title{
+      display:flex;align-items:center;justify-content:space-between;margin-bottom:10px
+    }
+    .section-title h2{font-size:15px;margin:0}
+    .tag{
+      font-size:12px;color:var(--muted);background:var(--panel-2);
+      border:1px solid var(--line);padding:4px 8px;border-radius:999px
+    }
+    .hint{font-size:12px;color:var(--muted);line-height:1.6;margin:7px 0 0}
+    .upload-wrap{
+      border:1.5px dashed #cbb8dd;border-radius:18px;padding:14px;
+      background:linear-gradient(180deg,#fcfaff,#faf7fd);
+    }
+    .upload-box{
+      min-height:155px;border-radius:14px;display:grid;place-items:center;
+      text-align:center;padding:18px;position:relative;overflow:hidden;
+      background:#fff;
+    }
+    .upload-box input{display:none}
+    .upload-empty strong{display:block;font-size:14px;margin:7px 0 3px}
+    .upload-empty span{font-size:12px;color:var(--muted)}
+    .upload-actions{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+    .btn{
+      border:none;border-radius:12px;padding:10px 14px;font-weight:600;
+      background:#f1e9f8;color:#654884;
+    }
+    .btn.primary{
+      background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;
+      box-shadow:0 8px 20px rgba(123,90,166,.22);
+    }
+    .btn.ghost{background:#fff;border:1px solid var(--line);color:#5b4c68}
+    .btn.danger{background:#fbeff1;color:var(--danger)}
+    .preview{
+      width:100%;height:220px;object-fit:cover;border-radius:13px;display:none
+    }
+    .recognized{display:none;margin-top:12px}
+    .recognized-head{
+      display:flex;align-items:center;justify-content:space-between;margin-bottom:8px
+    }
+    .recognized-list{display:grid;gap:8px}
+    .recognized-row{
+      display:grid;grid-template-columns:1fr 110px;gap:8px
+    }
+    .field, textarea, select{
+      width:100%;border:1px solid var(--line);background:#fff;color:var(--text);
+      border-radius:13px;padding:11px 12px;outline:none;transition:.2s;
+    }
+    .field:focus,textarea:focus,select:focus{
+      border-color:#b396ce;box-shadow:0 0 0 3px rgba(148,111,183,.10)
+    }
+    textarea{resize:vertical;min-height:110px;line-height:1.6}
+    .no-image-cards{display:none;margin-top:10px}
+    .manual-list{display:grid;gap:8px}
+    .manual-row{display:grid;grid-template-columns:1fr 110px 34px;gap:8px}
+    .icon-btn{
+      border:none;background:#f7eef2;color:#a35869;border-radius:10px
+    }
+    .add-line{
+      width:100%;margin-top:9px;border:1px dashed #cbb8dd;background:#fbf8fe;
+      color:#6b4a8d;border-radius:12px;padding:9px
+    }
+    .generate{
+      width:100%;margin-top:16px;padding:14px;border:none;border-radius:15px;
+      color:#fff;font-weight:700;font-size:15px;
+      background:linear-gradient(135deg,#6c4b95,#9a72bf);
+      box-shadow:0 12px 28px rgba(108,75,149,.26)
+    }
+    .result-card{
+      min-height:calc(100vh - 120px);
+      display:flex;flex-direction:column
+    }
+    .result-header{
+      padding:18px 20px;border-bottom:1px solid var(--line);
+      display:flex;align-items:center;justify-content:space-between;gap:12px
+    }
+    .result-header h2{margin:0;font-size:17px}
+    .result-header p{margin:4px 0 0;color:var(--muted);font-size:12px}
+    .result-body{
+      flex:1;padding:24px;overflow:auto
+    }
+    .empty-state{
+      height:100%;min-height:480px;display:grid;place-items:center;text-align:center;color:var(--muted)
+    }
+    .orb{
+      width:78px;height:78px;border-radius:50%;margin:0 auto 14px;
+      background:
+        radial-gradient(circle at 35% 30%,#fff 0 8%,transparent 9%),
+        radial-gradient(circle,#cdb4e7,#9d77c4 55%,#6f4e97);
+      box-shadow:0 18px 40px rgba(111,78,151,.25)
+    }
+    .result-content{display:none;max-width:900px;margin:0 auto}
+    .summary{
+      padding:18px;border:1px solid var(--line);border-radius:18px;
+      background:linear-gradient(135deg,#fbf8fe,#fff);
+      margin-bottom:16px;line-height:1.75
+    }
+    .analysis-section{
+      padding:16px 0;border-bottom:1px solid var(--line)
+    }
+    .analysis-section:last-child{border-bottom:none}
+    .analysis-section h3{margin:0 0 9px;font-size:15px}
+    .analysis-section p{margin:0;color:#51475b;line-height:1.8}
+    .chip-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+    .chip{
+      padding:7px 10px;border-radius:999px;background:#f3ecf8;
+      border:1px solid #e5d9ef;color:#654b7d;font-size:12px
+    }
+    .loading{
+      display:none;align-items:center;justify-content:center;gap:10px;padding:10px;color:var(--muted)
+    }
+    .spinner{
+      width:18px;height:18px;border:2px solid #dccfe8;border-top-color:#7b5aa6;
+      border-radius:50%;animation:spin .8s linear infinite
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .toast{
+      position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+      background:#2e2636;color:#fff;padding:10px 14px;border-radius:12px;
+      font-size:13px;opacity:0;pointer-events:none;transition:.25s;z-index:20
+    }
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    @media (max-width:900px){
+      .app{padding:10px}
+      .topbar{padding:10px 4px 14px}
+      .status{display:none}
+      .layout{grid-template-columns:1fr}
+      .result-card{min-height:auto}
+      .result-body{padding:18px}
+      .empty-state{min-height:320px}
+      .form-card{padding:14px}
+    }
+    @media (max-width:480px){
+      .brand h1{font-size:18px}
+      .brand p{display:none}
+      .logo{width:40px;height:40px}
+      .recognized-row{grid-template-columns:1fr 96px}
+      .manual-row{grid-template-columns:1fr 92px 34px}
+      .result-header{align-items:flex-start;flex-direction:column}
+      .btn{padding:9px 11px}
+    }
+  
+    .modal{
+      position:fixed;inset:0;background:rgba(35,27,43,.36);
+      display:none;align-items:center;justify-content:center;padding:16px;z-index:50;
+      backdrop-filter:blur(4px)
+    }
+    .modal.show{display:flex}
+    .modal-panel{
+      width:min(920px,100%);max-height:min(82vh,820px);overflow:hidden;
+      background:#fff;border-radius:22px;border:1px solid var(--line);
+      box-shadow:0 28px 80px rgba(45,32,58,.24);display:flex;flex-direction:column
+    }
+    .modal-head{
+      padding:16px 18px;border-bottom:1px solid var(--line);
+      display:flex;align-items:center;justify-content:space-between;gap:12px
+    }
+    .modal-head h3{margin:0;font-size:17px}
+    .history-list{padding:12px;overflow:auto;display:grid;gap:10px}
+    .history-item{
+      border:1px solid var(--line);border-radius:16px;padding:13px;background:#fff
+    }
+    .history-meta{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .history-title{font-weight:700;font-size:14px}
+    .history-time{font-size:12px;color:var(--muted);white-space:nowrap}
+    .history-story,.history-result{
+      margin-top:8px;color:#5d5367;font-size:13px;line-height:1.6
+    }
+    .history-story{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .history-result{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+    .history-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+    .history-empty{padding:42px 20px;text-align:center;color:var(--muted)}
+
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">✦</div>
+        <div>
+          <h1>Tarot Studio AI</h1>
+          <p>为塔罗工作室快速整理信息并生成结构化解读</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn ghost" id="historyBtn" type="button">历史记录</button>
+        <div class="status"><span class="dot"></span> AI 助手已就绪</div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="card form-card">
+        <div class="section">
+          <div class="section-title">
+            <h2>1. 塔罗牌照片</h2>
+            <span class="tag">可选，仅 1 张</span>
+          </div>
+
+          <div class="upload-wrap">
+            <div class="upload-box">
+              <img id="preview" class="preview" alt="塔罗牌照片预览">
+              <div id="uploadEmpty" class="upload-empty">
+                <div style="font-size:34px">🃏</div>
+                <strong>上传牌阵照片</strong>
+                <span>支持从相册选择，手机端也可直接拍照</span>
+                <div class="upload-actions">
+                  <label class="btn primary" for="filePicker">选择图片</label>
+                  <label class="btn ghost" for="cameraPicker">拍照</label>
+                </div>
+              </div>
+              <input id="filePicker" type="file" accept="image/*">
+              <input id="cameraPicker" type="file" accept="image/*" capture="environment">
+            </div>
+            <div id="imageActions" class="upload-actions" style="display:none">
+              <button class="btn ghost" id="recognizeBtn" type="button">识图说明</button>
+              <button class="btn danger" id="removeImageBtn" type="button">移除图片</button>
+            </div>
+          </div>
+
+          <div id="recognized" class="recognized">
+            <div class="recognized-head">
+              <strong style="font-size:13px">识别结果</strong>
+              <span class="hint" style="margin:0">可手动修正</span>
+            </div>
+            <div id="recognizedList" class="recognized-list"></div>
+          </div>
+          <p class="hint">接入支持视觉识别的 AI 接口后，可自动识别图片中的牌名和正位/逆位。</p>
+        </div>
+
+        <div class="section">
+          <div class="section-title">
+            <h2>2. 客户故事 / 基本情况</h2>
+          </div>
+          <textarea id="story" placeholder="例如：客户与前任分开三个月，最近重新联系，想知道两人的关系是否还有发展可能……"></textarea>
+        </div>
+
+        <div class="section">
+          <div class="section-title">
+            <h2>3. 使用的排阵</h2>
+          </div>
+          <select id="spread">
+            <option value="">请选择排阵</option>
+            <option>单张牌</option>
+            <option>三张牌：过去 / 现在 / 未来</option>
+            <option>三张牌：现状 / 阻碍 / 建议</option>
+            <option>感情三角阵</option>
+            <option>关系发展牌阵</option>
+            <option>事业发展牌阵</option>
+            <option>二选一牌阵</option>
+            <option>凯尔特十字</option>
+            <option>自定义排阵</option>
+          </select>
+          <input id="customSpread" class="field" style="display:none;margin-top:9px" placeholder="请输入自定义排阵名称或牌位含义">
+        </div>
+
+        <div class="section">
+          <div class="section-title">
+            <h2>4. 未上传图片时的抽牌结果</h2>
+            <span class="tag">无图时填写</span>
+          </div>
+          <div id="manualCards" class="no-image-cards">
+            <div id="manualList" class="manual-list"></div>
+            <button class="add-line" id="addCardBtn" type="button">+ 添加一张牌</button>
+          </div>
+          <p id="manualHint" class="hint">当前未上传图片，请填写客户抽到的牌及正逆位。</p>
+        </div>
+
+
+        <div class="section">
+          <div class="section-title">
+            <h2>AI 接口设置</h2>
+            <span class="tag">本机保存</span>
+          </div>
+          <input id="apiBase" class="field" placeholder="API 地址，例如：https://你的域名/v1/chat/completions">
+          <input id="apiKey" class="field" type="password" style="margin-top:9px" placeholder="API Key">
+          <input id="modelName" class="field" style="margin-top:9px" value="gpt-4o-mini" placeholder="模型名称">
+          <p class="hint">纯前端页面会在浏览器中直接请求接口，Key 仅保存在当前浏览器 localStorage。若页面公开部署，请改为后端代理。</p>
+        </div>
+
+        <button id="generateBtn" class="generate" type="button">✨ 生成塔罗解读</button>
+        <div id="loading" class="loading"><span class="spinner"></span>正在整理牌面与客户故事…</div>
+      </section>
+
+      <section class="card result-card">
+        <div class="result-header">
+          <div>
+            <h2>AI 解读结果</h2>
+            <p>适合工作室直接复制、微调后发送给客户</p>
+          </div>
+          <button class="btn ghost" id="copyBtn" type="button">复制结果</button>
+        </div>
+
+        <div class="result-body">
+          <div id="emptyState" class="empty-state">
+            <div>
+              <div class="orb"></div>
+              <strong style="display:block;color:#51475b;margin-bottom:7px">填写左侧信息后生成解读</strong>
+              <span style="font-size:13px;line-height:1.7">支持照片识牌、正逆位、排阵与客户背景综合分析</span>
+            </div>
+          </div>
+
+          <div id="resultContent" class="result-content">
+            <div id="aiOutput" class="summary" style="white-space:pre-wrap;min-height:160px"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+
+  <div id="historyModal" class="modal">
+    <div class="modal-panel">
+      <div class="modal-head">
+        <div>
+          <h3>历史解读记录</h3>
+          <div class="hint" style="margin-top:3px">仅保存在当前浏览器本地</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn danger" id="clearHistoryBtn" type="button">清空记录</button>
+          <button class="btn ghost" id="closeHistoryBtn" type="button">关闭</button>
+        </div>
+      </div>
+      <div id="historyList" class="history-list"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    const filePicker = document.getElementById('filePicker');
+    const cameraPicker = document.getElementById('cameraPicker');
+    const preview = document.getElementById('preview');
+    const uploadEmpty = document.getElementById('uploadEmpty');
+    const imageActions = document.getElementById('imageActions');
+    const removeImageBtn = document.getElementById('removeImageBtn');
+    const recognizeBtn = document.getElementById('recognizeBtn');
+    const recognized = document.getElementById('recognized');
+    const recognizedList = document.getElementById('recognizedList');
+    const manualCards = document.getElementById('manualCards');
+    const manualList = document.getElementById('manualList');
+    const manualHint = document.getElementById('manualHint');
+    const addCardBtn = document.getElementById('addCardBtn');
+    const spread = document.getElementById('spread');
+    const customSpread = document.getElementById('customSpread');
+    const generateBtn = document.getElementById('generateBtn');
+    const loading = document.getElementById('loading');
+    const emptyState = document.getElementById('emptyState');
+    const resultContent = document.getElementById('resultContent');
+    const copyBtn = document.getElementById('copyBtn');
+    const apiBase = document.getElementById('apiBase');
+    const apiKey = document.getElementById('apiKey');
+    const modelName = document.getElementById('modelName');
+    const aiOutput = document.getElementById('aiOutput');
+    const toast = document.getElementById('toast');
+    const historyBtn = document.getElementById('historyBtn');
+    const historyModal = document.getElementById('historyModal');
+    const closeHistoryBtn = document.getElementById('closeHistoryBtn');
+    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+    const historyList = document.getElementById('historyList');
+
+    let imageFile = null;
+
+    const savedApiBase = localStorage.getItem('tarot_api_base') || 'https://kuaipao.pro/v1';
+    const savedApiKey = localStorage.getItem('tarot_api_key') || 'sk-8ZKQSRsS3i8wJrBoe2QDgY2q2cbidr7jP8S1Pqr9MBo3wNbe';
+    const savedModel = localStorage.getItem('tarot_model') || 'gpt-5.6-sol';
+    apiBase.value = savedApiBase;
+    apiKey.value = savedApiKey;
+    modelName.value = savedModel;
+
+    [apiBase, apiKey, modelName].forEach(el => {
+      el.addEventListener('change', () => {
+        localStorage.setItem('tarot_api_base', apiBase.value.trim());
+        localStorage.setItem('tarot_api_key', apiKey.value.trim());
+        localStorage.setItem('tarot_model', modelName.value.trim());
+      });
+    });
+
+    function fileToDataUrl(file){
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function buildPrompt(story, spreadName, cards, hasImage){
+      const manualCardsText = cards.length
+        ? cards.map((c, i) => `${i + 1}. ${c.name}（${c.orientation}）`).join('；')
+        : '未手动提供牌名。';
+
+      let input = `客户故事 / 基本情况：${story}；使用的排阵：${spreadName}；是否上传牌阵照片：${hasImage ? '是，请从照片中识别全部塔罗牌并判断每张牌正位或逆位' : '否'}；已知抽牌结果：${manualCardsText}。`;
+
+      if(hasImage){
+        input += '如果照片中任意一张牌无法可靠识别牌名或正逆位，请不要猜测，应直接判定当前案例信息不完整，并要求补充或重新上传更清晰的照片。';
+      }
+
+      input += '回答不允许换行和分段';
+      return input;
+    }
+
+    function normalizeSingleLine(text){
+      return String(text || '')
+        .replace(/\r\n|\r|\n/g, '')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+    }
+
+    async function requestTarotAI({story, spreadName, cards}){
+      const endpoint = apiBase.value.trim();
+      const key = apiKey.value.trim();
+      const model = modelName.value.trim() || 'gpt-5.6-sol';
+
+      if(!endpoint) throw new Error('请填写 AI API 地址');
+      if(!key) throw new Error('请填写 API Key');
+
+      localStorage.setItem('tarot_api_base', endpoint);
+      localStorage.setItem('tarot_api_key', key);
+      localStorage.setItem('tarot_model', model);
+
+      const content = [{
+        type: 'text',
+        text: buildPrompt(story, spreadName, cards, !!imageFile)
+      }];
+
+      if(imageFile){
+        const dataUrl = await fileToDataUrl(imageFile);
+        content.push({
+          type: 'image_url',
+          image_url: { url: dataUrl }
+        });
+      }
+
+      const body = {
+        model,
+        messages: [
+          {
+            role: 'system',
+            content: '你是一名为专业塔罗工作室服务的资深塔罗解读师。你的主要任务不是教授塔罗知识，也不是向用户介绍塔罗牌，而是帮助塔罗工作室快速处理一个又一个新的客户案例。每一次用户输入都必须视为一个全新的客户案例。你需要根据用户提供的客户故事和现实背景、客户真正想测算的问题、使用的牌阵、知识库中该牌阵对应的解牌思路、每一个牌位对应的问题、客户实际抽到的塔罗牌、每张牌的正位或逆位，完成专业、详细、自然、有温度的塔罗分析，并最终输出一份可以直接复制发送给客户的完整解牌文案。
+
+最高优先级规则：
+1. 每一次输入都是完全独立的新客户案例，绝对禁止关联之前案例中的任何人物、故事、牌阵、牌面、结果或追加问题。
+2. 最终输出必须是可以直接发送给客户的成品文案，不得输出内部分析过程、规则说明、AI或模型身份说明。
+3. 如果存在工作室知识库中的自定义牌阵定义，必须优先使用知识库定义，不得擅自改变牌位含义、张数或顺序。
+4. 正式解牌前必须检查输入完整性：必须有客户故事或现实背景、必须明确使用牌阵、必须提供全部实际抽到的塔罗牌、每张牌必须明确正位或逆位、牌数必须与该牌阵要求一致。只要任意一项缺失或不一致，立即停止解牌，只说明缺失项并要求补充，不得自行抽牌、猜牌、补牌、选择牌阵或输出追加测算问题。
+5. 正式解牌时必须先理解客户真正关心的问题，再按照牌阵逐牌解读，将牌义、正逆位、牌位、客户现实故事及其他牌之间的关系综合起来。禁止百科式机械翻译牌义。
+6. 多张牌必须形成整体故事，要观察花色比例、大阿卡纳、人物牌、数字、正逆位比例、元素关系以及前后牌的发展过程。
+7. 结论必须清晰，不能整篇只使用“可能、也许、说不准”等模糊表述。可以给出明确牌面倾向，但不得把塔罗包装成百分之百确定的现实事实。尤其涉及出轨、怀孕、疾病、死亡、犯罪、考试具体分数、投资具体收益、法律结果等现实事实时，只能表达牌面趋势和象征性参考。
+8. 感情问题必须区分有感情、想念、舍不得、有吸引力、想联系、愿意复合、愿意承担责任、实际采取行动、长期稳定发展，这些不是一回事。
+9. 事业问题重点分析当前职业状态、个人优势、现实阻碍、机会、环境、未来趋势以及继续还是调整的方向，不得仅凭一张好牌建议重大职业决策。
+10. 学业问题重点分析准备程度、发挥、心理压力、短板、优势、考试趋势和提升方向，不得声称能精确预测确定分数。
+11. 家庭与人际问题重点分析互动状态、矛盾、需求、沟通、未来趋势和改善突破口，不得把另一方绝对妖魔化。
+12. 语言必须使用中文，正式解牌第一句话必须自然地以“宝宝”开头。整体人设为专业、成熟、有经验、懂感情也懂现实生活的邻家大姐姐型塔罗师。语言自然、温柔、有交流感、易理解、有专业判断，不像客服、不像AI、不像论文或百科。
+13. 默认充分详细解读，每张牌都要结合牌位、故事、心理状态、现实阻碍、发展影响和其他牌联系进行充分分析，但避免同义重复。
+14. 完成当前案例后必须自然加入固定句：“接下来比较推荐你继续抽牌，因为接下来这些问题很重要”，然后生成至少8个、通常8到12个高度相关、与当前已解内容不重复、具有继续探索价值的追加测算问题。每个追加问题原则上一张牌对应一个问题。追加问题应沿着已知答案、背后原因、对方行动、客户行动、行动后的结果、最大阻碍、短期变化、长期趋势逐渐深入。
+15. 追加测算不得虚构第三者、出轨、危险、灾难、疾病、怀孕等制造焦虑，不得暗示“不继续抽牌会错过机会”，不得故意隐藏当前已经能得出的结论来诱导继续消费。
+16. 最终输出必须且只能是一个自然段、一行纯文本，从第一个字符“宝宝”开始，到最后一个追加测算问题结束。禁止任何实际换行符、回车符、空行、Markdown标题、小标题、项目符号、列表、表格、引用块、代码块。每张牌不得单独换行，综合判断、现实建议、固定过渡句和追加问题均不得单独成段。追加问题只能使用行内数字编号，例如“1.问题一，2.问题二，3.问题三……”。最终发送前必须删除所有换行与回车，并确认追加问题不少于8个。'
+          },
+          {
+            role: 'user',
+            content
+          }
+        ],
+        stream: true
+      };
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Accept': 'text/event-stream, application/json',
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+
+      if(!response.ok){
+        let detail = '';
+        try { detail = await response.text(); } catch {}
+        throw new Error(`接口请求失败：HTTP ${response.status}${detail ? ' - ' + detail.slice(0,300) : ''}`);
+      }
+
+      emptyState.style.display='none';
+      resultContent.style.display='block';
+      aiOutput.textContent = '';
+      let fullText = '';
+
+      const contentType = response.headers.get('content-type') || '';
+
+      // Some compatible gateways may ignore stream=true and return normal JSON.
+      if(contentType.includes('application/json')){
+        const json = await response.json();
+        const text = json?.choices?.[0]?.message?.content ?? json?.choices?.[0]?.delta?.content ?? '';
+        aiOutput.textContent = normalizeSingleLine(text || JSON.stringify(json));
+        return;
+      }
+
+      if(!response.body){
+        throw new Error('浏览器没有收到可读取的响应流');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+
+      while(true){
+        const {value, done} = await reader.read();
+        if(done) break;
+
+        buffer += decoder.decode(value, {stream:true});
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() || '';
+
+        for(const rawLine of lines){
+          const line = rawLine.trim();
+          if(!line || line.startsWith(':')) continue;
+
+          const data = line.startsWith('data:') ? line.slice(5).trim() : line;
+          if(data === '[DONE]') continue;
+
+          try{
+            const json = JSON.parse(data);
+            const delta =
+              json?.choices?.[0]?.delta?.content ??
+              json?.choices?.[0]?.message?.content ??
+              '';
+            if(delta){
+              fullText += delta;
+              aiOutput.textContent = normalizeSingleLine(fullText);
+              aiOutput.scrollIntoView({block:'end'});
+            }
+          }catch{
+            // If a gateway streams raw text instead of SSE JSON, show it directly.
+            if(!line.startsWith('data:')){
+              aiOutput.textContent += rawLine + '\\n';
+            }
+          }
+        }
+      }
+
+      aiOutput.textContent = normalizeSingleLine(aiOutput.textContent);
+      if(!aiOutput.textContent.trim()){
+        throw new Error('接口已返回，但没有解析到模型输出内容');
+      }
+    }
+
+
+    const tarotNames = [
+      '愚人','魔术师','女祭司','皇后','皇帝','教皇','恋人','战车','力量','隐士','命运之轮',
+      '正义','倒吊人','死神','节制','恶魔','高塔','星星','月亮','太阳','审判','世界',
+      '权杖首牌','圣杯二','宝剑三','星币六','权杖九','圣杯十'
+    ];
+
+    function showToast(text){
+      toast.textContent = text;
+      toast.classList.add('show');
+      setTimeout(()=>toast.classList.remove('show'), 1800);
+    }
+
+
+    const HISTORY_KEY = 'tarot_reading_history_v1';
+
+    function loadHistory(){
+      try{
+        return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+      }catch{
+        return [];
+      }
+    }
+
+    function saveHistoryList(list){
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+    }
+
+    function saveHistoryRecord(record){
+      const list = loadHistory();
+      list.unshift({
+        id: Date.now() + '_' + Math.random().toString(36).slice(2,8),
+        createdAt: new Date().toISOString(),
+        ...record
+      });
+      // 防止 localStorage 无限增长，保留最近 100 条
+      saveHistoryList(list.slice(0,100));
+    }
+
+    function formatTime(iso){
+      try{
+        const d = new Date(iso);
+        return d.toLocaleString('zh-CN', {
+          year:'numeric',month:'2-digit',day:'2-digit',
+          hour:'2-digit',minute:'2-digit'
+        });
+      }catch{
+        return iso || '';
+      }
+    }
+
+    function renderHistory(){
+      const list = loadHistory();
+      historyList.innerHTML = '';
+      if(!list.length){
+        historyList.innerHTML = '<div class="history-empty">还没有历史解读记录</div>';
+        return;
+      }
+
+      list.forEach(item=>{
+        const el = document.createElement('div');
+        el.className = 'history-item';
+
+        const cardsText = Array.isArray(item.cards) && item.cards.length
+          ? item.cards.map(c=>`${c.name}（${c.orientation}）`).join('、')
+          : (item.hasImage ? '图片识牌' : '未记录牌面');
+
+        el.innerHTML = `
+          <div class="history-meta">
+            <div>
+              <div class="history-title">${escapeHtml(item.spread || '未命名牌阵')}</div>
+              <div class="hint" style="margin-top:3px">${escapeHtml(cardsText)}</div>
+            </div>
+            <div class="history-time">${escapeHtml(formatTime(item.createdAt))}</div>
+          </div>
+          <div class="history-story">${escapeHtml(item.story || '')}</div>
+          <div class="history-result">${escapeHtml(item.result || '')}</div>
+          <div class="history-actions">
+            <button class="btn primary" data-action="load">恢复到当前页面</button>
+            <button class="btn ghost" data-action="view">查看结果</button>
+            <button class="btn danger" data-action="delete">删除</button>
+          </div>
+        `;
+
+        el.querySelector('[data-action="load"]').onclick = ()=>{
+          document.getElementById('story').value = item.story || '';
+          if([...spread.options].some(o=>o.value === item.spread || o.text === item.spread)){
+            spread.value = item.spread || '';
+            customSpread.style.display = 'none';
+          }else if(item.spread){
+            spread.value = '自定义排阵';
+            customSpread.style.display = 'block';
+            customSpread.value = item.spread;
+          }
+
+          // 历史记录不存图片二进制，只恢复文本牌面
+          if(Array.isArray(item.cards) && item.cards.length){
+            if(imageFile){
+              removeImageBtn.click();
+            }
+            manualList.innerHTML = '';
+            item.cards.forEach(c=>addManualRow(c.name || '', c.orientation || '正位'));
+            manualCards.style.display = 'block';
+            manualHint.textContent = '已从历史记录恢复牌面信息。';
+          }
+
+          aiOutput.textContent = item.result || '';
+          if(item.result){
+            emptyState.style.display = 'none';
+            resultContent.style.display = 'block';
+          }
+
+          historyModal.classList.remove('show');
+          showToast('历史记录已恢复');
+        };
+
+        el.querySelector('[data-action="view"]').onclick = ()=>{
+          aiOutput.textContent = item.result || '';
+          emptyState.style.display = item.result ? 'none' : 'grid';
+          resultContent.style.display = item.result ? 'block' : 'none';
+          historyModal.classList.remove('show');
+          document.querySelector('.result-card').scrollIntoView({behavior:'smooth'});
+        };
+
+        el.querySelector('[data-action="delete"]').onclick = ()=>{
+          const next = loadHistory().filter(x=>x.id !== item.id);
+          saveHistoryList(next);
+          renderHistory();
+          showToast('记录已删除');
+        };
+
+        historyList.appendChild(el);
+      });
+    }
+
+    historyBtn.addEventListener('click', ()=>{
+      renderHistory();
+      historyModal.classList.add('show');
+    });
+
+    closeHistoryBtn.addEventListener('click', ()=>{
+      historyModal.classList.remove('show');
+    });
+
+    historyModal.addEventListener('click', e=>{
+      if(e.target === historyModal) historyModal.classList.remove('show');
+    });
+
+    clearHistoryBtn.addEventListener('click', ()=>{
+      if(!loadHistory().length) return;
+      if(confirm('确定要清空全部历史解读记录吗？此操作无法恢复。')){
+        localStorage.removeItem(HISTORY_KEY);
+        renderHistory();
+        showToast('历史记录已清空');
+      }
+    });
+
+    function setImage(file){
+      if(!file) return;
+      imageFile = file;
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = 'block';
+      uploadEmpty.style.display = 'none';
+      imageActions.style.display = 'flex';
+      manualCards.style.display = 'none';
+      manualHint.textContent = '已上传图片，将优先使用照片识别出的牌面。';
+      recognized.style.display = 'none';
+    }
+
+    filePicker.addEventListener('change', e => setImage(e.target.files[0]));
+    cameraPicker.addEventListener('change', e => setImage(e.target.files[0]));
+
+    removeImageBtn.addEventListener('click', ()=>{
+      imageFile = null;
+      filePicker.value = '';
+      cameraPicker.value = '';
+      preview.src = '';
+      preview.style.display = 'none';
+      uploadEmpty.style.display = 'block';
+      imageActions.style.display = 'none';
+      recognized.style.display = 'none';
+      recognizedList.innerHTML = '';
+      manualCards.style.display = 'block';
+      manualHint.textContent = '当前未上传图片，请填写客户抽到的牌及正逆位。';
+    });
+
+    function addRecognizedRow(name='牌名待识别', orientation='正位'){
+      const row = document.createElement('div');
+      row.className = 'recognized-row';
+      row.innerHTML = `
+        <input class="field card-name" value="${name}">
+        <select class="orientation"><option ${orientation==='正位'?'selected':''}>正位</option><option ${orientation==='逆位'?'selected':''}>逆位</option></select>
+      `;
+      recognizedList.appendChild(row);
+    }
+
+    recognizeBtn.addEventListener('click', ()=>{
+      showToast('无需单独识别，点击“生成塔罗解读”后 AI 会同时识图并解析');
+    });
+
+    function addManualRow(name='', orientation='正位'){
+      const row = document.createElement('div');
+      row.className = 'manual-row';
+      row.innerHTML = `
+        <input class="field card-name" placeholder="牌名，如：恋人" value="${name}">
+        <select class="orientation"><option ${orientation==='正位'?'selected':''}>正位</option><option ${orientation==='逆位'?'selected':''}>逆位</option></select>
+        <button class="icon-btn" type="button">×</button>
+      `;
+      row.querySelector('.icon-btn').onclick = ()=>row.remove();
+      manualList.appendChild(row);
+    }
+
+    addCardBtn.addEventListener('click', ()=>addManualRow());
+    addManualRow();
+    addManualRow();
+    addManualRow();
+    manualCards.style.display = 'block';
+
+    spread.addEventListener('change', ()=>{
+      customSpread.style.display = spread.value === '自定义排阵' ? 'block' : 'none';
+    });
+
+    function collectCards(){
+      const box = imageFile && recognized.style.display !== 'none' ? recognizedList : manualList;
+      return [...box.querySelectorAll('.recognized-row,.manual-row')].map(row=>({
+        name: row.querySelector('.card-name').value.trim(),
+        orientation: row.querySelector('.orientation').value
+      })).filter(x=>x.name);
+    }
+
+    function escapeHtml(s){
+      return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+    }
+
+    generateBtn.addEventListener('click', async ()=>{
+      const story = document.getElementById('story').value.trim();
+      const spreadName = spread.value === '自定义排阵' ? customSpread.value.trim() : spread.value;
+      const cards = collectCards();
+
+      if(!story){ showToast('请填写客户故事或基本情况'); return; }
+      if(!spreadName){ showToast('请选择或填写排阵'); return; }
+      if(!imageFile && cards.length===0){ showToast('未上传图片时，请填写抽到的牌'); return; }
+
+      generateBtn.disabled = true;
+      generateBtn.textContent = 'AI 正在解析…';
+      loading.style.display = 'flex';
+
+      try{
+        await requestTarotAI({story, spreadName, cards});
+        saveHistoryRecord({
+          story,
+          spread: spreadName,
+          cards,
+          hasImage: !!imageFile,
+          result: normalizeSingleLine(aiOutput.textContent)
+        });
+        showToast('AI 解读完成，已保存到历史记录');
+        if(window.innerWidth < 900){
+          document.querySelector('.result-card').scrollIntoView({behavior:'smooth'});
+        }
+      }catch(err){
+        console.error(err);
+        showToast(err.message || '请求失败');
+        if(resultContent.style.display === 'block' && !aiOutput.textContent.trim()){
+          resultContent.style.display = 'none';
+          emptyState.style.display = 'grid';
+        }
+      }finally{
+        loading.style.display = 'none';
+        generateBtn.disabled = false;
+        generateBtn.textContent = '✨ 生成塔罗解读';
+      }
+    });
+
+    copyBtn.addEventListener('click', async ()=>{
+      if(resultContent.style.display !== 'block'){
+        showToast('暂无可复制的结果');
+        return;
+      }
+      const text = normalizeSingleLine(aiOutput.innerText);
+      try{
+        await navigator.clipboard.writeText(text);
+        showToast('解读结果已复制');
+      }catch{
+        showToast('复制失败，请手动选择文本');
+      }
+    });
+  </script>
+</body>
+</html>
