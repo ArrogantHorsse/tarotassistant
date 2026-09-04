@@ -429,9 +429,9 @@
 
     let imageFile = null;
 
-    const savedApiBase = localStorage.getItem('tarot_api_base') || 'https://kuaipao.pro/v1';
+    const savedApiBase = localStorage.getItem('tarot_api_base') || '';
     const savedApiKey = localStorage.getItem('tarot_api_key') || 'sk-8ZKQSRsS3i8wJrBoe2QDgY2q2cbidr7jP8S1Pqr9MBo3wNbe';
-    const savedModel = localStorage.getItem('tarot_model') || 'gpt-5.6-sol';
+    const savedModel = localStorage.getItem('tarot_model') || 'gpt-4o-mini';
     apiBase.value = savedApiBase;
     apiKey.value = savedApiKey;
     modelName.value = savedModel;
@@ -478,7 +478,7 @@
     async function requestTarotAI({story, spreadName, cards}){
       const endpoint = apiBase.value.trim();
       const key = apiKey.value.trim();
-      const model = modelName.value.trim() || 'gpt-5.6-sol';
+      const model = modelName.value.trim() || 'gpt-4o-mini';
 
       if(!endpoint) throw new Error('请填写 AI API 地址');
       if(!key) throw new Error('请填写 API Key');
