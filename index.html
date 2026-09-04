@@ -99,9 +99,9 @@ function normalizeOneLine(v){return String(v||'').replace(/\r\n|\r|\n/g,'').repl
 function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function fileToDataURL(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
 
-apiBase.value=localStorage.getItem('tarot_api_base')||'';
+apiBase.value=localStorage.getItem('tarot_api_base')||'https://kuaipao.pro/v1';
 apiKey.value=localStorage.getItem('tarot_api_key')||DEFAULT_KEY;
-modelName.value=localStorage.getItem('tarot_model')||'gpt-4o-mini';
+modelName.value=localStorage.getItem('tarot_model')||'gpt-5.6-sol';
 
 function persistApi(){localStorage.setItem('tarot_api_base',apiBase.value.trim());localStorage.setItem('tarot_api_key',apiKey.value.trim());localStorage.setItem('tarot_model',modelName.value.trim())}
 [apiBase,apiKey,modelName].forEach(x=>x.addEventListener('change',persistApi));
