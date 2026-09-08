@@ -55,7 +55,7 @@ textarea{min-height:110px;resize:vertical;line-height:1.55}
 .history-item .res{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .history-actions{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap}
 .prompt-ok{color:#36875c}
-.prompt-bad{color:#b24d62}
+.prompt-bad{color:#b24d62}.chat-thread{display:none;margin-bottom:14px}.chat-msg{padding:12px 14px;border-radius:14px;margin:9px 0;line-height:1.7;font-size:14px}.chat-user{background:#f4eef8;margin-left:8%}.chat-assistant{background:#fff;border:1px solid var(--line);margin-right:5%}.followup{display:none;border-top:1px solid var(--line);padding-top:14px;margin-top:14px}.followup textarea{min-height:82px}.followup-row{display:grid;grid-template-columns:1fr 100px;gap:8px;margin-top:8px}.followup-actions{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
 @media(max-width:900px){.layout{grid-template-columns:1fr}.result{min-height:auto}.empty{min-height:250px}.brand p{display:none}}
 @media(max-width:480px){.app{padding:9px}.form{padding:13px}.manual-row{grid-template-columns:1fr 92px 32px}.top{align-items:flex-start}.top>.actions{display:flex;gap:6px}}
 </style>
@@ -173,7 +173,21 @@ textarea{min-height:110px;resize:vertical;line-height:1.55}
 
       <div class="result-body">
         <div id="empty" class="empty">填写左侧信息后点击“生成塔罗解读”</div>
+        <div id="chatThread" class="chat-thread"></div>
         <div id="output" class="output"></div>
+        <div id="followupBox" class="followup">
+          <div class="head"><b>继续追测</b><span class="tag">沿用当前客户上下文</span></div>
+          <textarea id="followupQuestion" placeholder="例如：那他迟迟不主动联系我的真正顾虑是什么？"></textarea>
+          <div class="followup-row">
+            <input id="followupCard" class="field" placeholder="新抽到的牌，如：隐士">
+            <select id="followupOrientation"><option>正位</option><option>逆位</option></select>
+          </div>
+          <div class="followup-actions">
+            <button id="followupBtn" class="btn primary" type="button">继续解析</button>
+            <button id="newSessionBtn" class="btn ghost" type="button">新客户 / 新会话</button>
+          </div>
+          <div class="hint" style="margin-top:7px">追测时会把本会话之前的客户信息、牌面和AI回复一起发送给AI。</div>
+        </div>
       </div>
     </section>
   </div>
@@ -230,12 +244,21 @@ const closeHistoryBtn=$('closeHistoryBtn');
 const clearHistoryBtn=$('clearHistoryBtn');
 
 const promptStatus=$('promptStatus');
+const chatThread=$('chatThread');
+const followupBox=$('followupBox');
+const followupQuestion=$('followupQuestion');
+const followupCard=$('followupCard');
+const followupOrientation=$('followupOrientation');
+const followupBtn=$('followupBtn');
+const newSessionBtn=$('newSessionBtn');
 
 let imageFile=null;
 let TAROT_SYSTEM_PROMPT='';
 let promptLoadError=null;
+let currentSessionId=null;
+let currentMessages=[];
 
-const HISTORY_KEY='tarot_history_v2';
+const HISTORY_KEY='tarot_history_v3';
 const DEFAULT_KEY='sk-8ZKQSRsS3i8wJrBoe2QDgY2q2cbidr7jP8S1Pqr9MBo3wNbe';
 
 function showToast(msg){
@@ -478,6 +501,14 @@ function buildUserText(spreadName,cards){
   return `客户故事 / 基本情况：${story.value.trim()}；使用的排阵：${spreadName}；${imageFile?'已上传牌阵照片，请识别照片中的全部塔罗牌以及每张牌的正位或逆位。':'没有上传图片。'}；抽牌结果：${cardsText}。回答不允许换行和分段`;
 }
 
+
+function createSessionId(){return Date.now()+'_'+Math.random().toString(36).slice(2,9)}
+function renderConversation(){chatThread.innerHTML='';if(!currentMessages.length){chatThread.style.display='none';followupBox.style.display='none';return}chatThread.style.display='block';currentMessages.forEach(msg=>{if(msg.role!=='user'&&msg.role!=='assistant')return;const div=document.createElement('div');div.className='chat-msg '+(msg.role==='user'?'chat-user':'chat-assistant');div.textContent=normalizeOneLine(msg.displayText||msg.content||'');chatThread.appendChild(div)});followupBox.style.display='block'}
+function getSessions(){try{return JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]')}catch{return[]}}
+function saveSessions(list){localStorage.setItem(HISTORY_KEY,JSON.stringify(list.slice(0,100)))}
+function persistCurrentSession(meta={}){if(!currentSessionId||!currentMessages.length)return;const sessions=getSessions(),now=new Date().toISOString(),existing=sessions.find(x=>x.id===currentSessionId);const record={id:currentSessionId,createdAt:existing?.createdAt||now,updatedAt:now,story:meta.story??existing?.story??story.value.trim(),spread:meta.spread??existing?.spread??(spread.value==='自定义排阵'?customSpread.value.trim():spread.value),cards:meta.cards??existing?.cards??collectCards(),messages:currentMessages};saveSessions([record,...sessions.filter(x=>x.id!==currentSessionId)].sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt)))}
+function startNewSession(){currentSessionId=null;currentMessages=[];chatThread.innerHTML='';chatThread.style.display='none';followupBox.style.display='none';followupQuestion.value='';followupCard.value='';output.textContent='';output.style.display='none';empty.style.display='grid';story.value='';spread.value='';customSpread.value='';customSpread.style.display='none';manualList.innerHTML='';addManualCard();addManualCard();addManualCard();if(imageFile)removeImageBtn.click();showToast('已开始新客户会话')}
+
 /* =========================
    API 请求
    ========================= */
@@ -496,7 +527,7 @@ function getEndpoint(){
   return base+'/chat/completions';
 }
 
-async function requestAI(spreadName,cards){
+async function requestAI(spreadName,cards,conversationMessages=null){
   const endpoint=getEndpoint();
   const key=apiKey.value.trim();
   const model=modelName.value.trim() || 'gpt-5.6-sol';
@@ -531,20 +562,13 @@ async function requestAI(spreadName,cards){
     });
   }
 
-  const body={
-    model:model,
-    messages:[
-      {
-        role:'system',
-        content:systemPrompt
-      },
-      {
-        role:'user',
-        content:content
-      }
-    ],
-    stream:true
-  };
+  let apiMessages;
+  if(conversationMessages){
+    apiMessages=[{role:'system',content:systemPrompt},...conversationMessages];
+  }else{
+    apiMessages=[{role:'system',content:systemPrompt},{role:'user',content:content}];
+  }
+  const body={model:model,messages:apiMessages,stream:true};
 
   console.log('AI请求地址：',endpoint);
   console.log('AI模型：',model);
@@ -685,129 +709,12 @@ async function requestAI(spreadName,cards){
    历史记录
    ========================= */
 
-function loadHistory(){
-  try{
-    return JSON.parse(
-      localStorage.getItem(HISTORY_KEY) || '[]'
-    );
-  }catch{
-    return [];
-  }
-}
-
-function saveHistory(item){
-  const arr=loadHistory();
-
-  arr.unshift({
-    id:Date.now()+'_'+Math.random().toString(36).slice(2,7),
-    time:new Date().toISOString(),
-    ...item
-  });
-
-  localStorage.setItem(
-    HISTORY_KEY,
-    JSON.stringify(arr.slice(0,100))
-  );
-}
-
 function renderHistory(){
-  const arr=loadHistory();
-
-  historyList.innerHTML='';
-
-  if(!arr.length){
-    historyList.innerHTML=
-      '<div class="hint" style="padding:30px;text-align:center">暂无历史记录</div>';
-    return;
-  }
-
-  arr.forEach(item=>{
-    const el=document.createElement('div');
-    el.className='history-item';
-
-    el.innerHTML=
-      `<b>${esc(item.spread)}</b>`+
-      `<span class="hint" style="float:right">${esc(new Date(item.time).toLocaleString('zh-CN'))}</span>`+
-      `<div class="story">${esc(item.story)}</div>`+
-      `<div class="res">${esc(item.result)}</div>`+
-      `<div class="history-actions">`+
-        `<button class="btn primary" data-a="view">查看</button>`+
-        `<button class="btn ghost" data-a="restore">恢复</button>`+
-        `<button class="btn danger" data-a="del">删除</button>`+
-      `</div>`;
-
-    el.querySelector('[data-a="view"]').onclick=()=>{
-      output.textContent=item.result || '';
-      empty.style.display='none';
-      output.style.display='block';
-      historyModal.classList.remove('show');
-    };
-
-    el.querySelector('[data-a="restore"]').onclick=()=>{
-      story.value=item.story || '';
-
-      const exists=
-        [...spread.options]
-          .some(o=>o.value===item.spread);
-
-      spread.value=
-        exists
-          ? item.spread
-          : '自定义排阵';
-
-      customSpread.style.display=
-        spread.value==='自定义排阵'
-          ? 'block'
-          : 'none';
-
-      if(spread.value==='自定义排阵'){
-        customSpread.value=item.spread || '';
-      }
-
-      manualList.innerHTML='';
-
-      (item.cards || []).forEach(card=>{
-        addManualCard(
-          card.name,
-          card.orientation
-        );
-      });
-
-      if(!(item.cards || []).length){
-        addManualCard();
-      }
-
-      output.textContent=item.result || '';
-
-      empty.style.display=
-        item.result
-          ? 'none'
-          : 'grid';
-
-      output.style.display=
-        item.result
-          ? 'block'
-          : 'none';
-
-      historyModal.classList.remove('show');
-      showToast('历史记录已恢复');
-    };
-
-    el.querySelector('[data-a="del"]').onclick=()=>{
-      const next=
-        loadHistory()
-          .filter(x=>x.id!==item.id);
-
-      localStorage.setItem(
-        HISTORY_KEY,
-        JSON.stringify(next)
-      );
-
-      renderHistory();
-    };
-
-    historyList.appendChild(el);
-  });
+  const arr=getSessions();historyList.innerHTML='';
+  if(!arr.length){historyList.innerHTML='<div class="hint" style="padding:30px;text-align:center">暂无历史会话</div>';return}
+  arr.forEach(item=>{const el=document.createElement('div');el.className='history-item';const rounds=(item.messages||[]).filter(x=>x.role==='assistant').length;const lastAssistant=[...(item.messages||[])].reverse().find(x=>x.role==='assistant');el.innerHTML=`<b>${esc(item.spread||'未命名牌阵')}</b><span class="hint" style="float:right">${esc(new Date(item.updatedAt||item.createdAt).toLocaleString('zh-CN'))}</span><div class="story">${esc(item.story||'')}</div><div class="hint" style="margin-top:5px">共 ${rounds} 轮解析</div><div class="res">${esc(lastAssistant?.content||'')}</div><div class="history-actions"><button class="btn primary" data-a="continue">继续会话</button><button class="btn danger" data-a="del">删除</button></div>`;
+    el.querySelector('[data-a="continue"]').onclick=()=>{currentSessionId=item.id;currentMessages=item.messages||[];story.value=item.story||'';const exists=[...spread.options].some(o=>o.value===item.spread);spread.value=exists?item.spread:'自定义排阵';customSpread.style.display=spread.value==='自定义排阵'?'block':'none';if(spread.value==='自定义排阵')customSpread.value=item.spread||'';manualList.innerHTML='';(item.cards||[]).forEach(card=>addManualCard(card.name,card.orientation));if(!(item.cards||[]).length)addManualCard();renderConversation();const last=[...currentMessages].reverse().find(x=>x.role==='assistant');if(last){output.textContent=normalizeOneLine(last.content||'');empty.style.display='none';output.style.display='block'}historyModal.classList.remove('show');showToast('已恢复该客户会话')};
+    el.querySelector('[data-a="del"]').onclick=()=>{saveSessions(getSessions().filter(x=>x.id!==item.id));if(currentSessionId===item.id){currentSessionId=null;currentMessages=[]}renderHistory()};historyList.appendChild(el)});
 }
 
 historyBtn.addEventListener('click',()=>{
@@ -826,8 +733,10 @@ historyModal.addEventListener('click',e=>{
 });
 
 clearHistoryBtn.addEventListener('click',()=>{
-  if(confirm('确定清空全部历史记录吗？')){
+  if(confirm('确定清空全部历史会话吗？')){
     localStorage.removeItem(HISTORY_KEY);
+    currentSessionId=null;
+    currentMessages=[];
     renderHistory();
   }
 });
@@ -865,21 +774,16 @@ generateBtn.addEventListener('click',async()=>{
     generateBtn.disabled=true;
     generateBtn.textContent='AI 正在解析…';
 
-    const result=
-      await requestAI(
-        spreadName,
-        cards
-      );
-
-    saveHistory({
-      story:customerStory,
-      spread:spreadName,
-      cards:cards,
-      hasImage:!!imageFile,
-      result:result
-    });
-
-    showToast('解读完成并已保存历史记录');
+    const initialUserText=buildUserText(spreadName,cards);
+    const result=await requestAI(spreadName,cards);
+    currentSessionId=createSessionId();
+    currentMessages=[
+      {role:'user',content:initialUserText,displayText:`初次测算：${customerStory}；排阵：${spreadName}`},
+      {role:'assistant',content:result}
+    ];
+    persistCurrentSession({story:customerStory,spread:spreadName,cards:cards});
+    renderConversation();
+    showToast('解读完成，已创建可继续追测的会话');
 
     if(window.innerWidth<900){
       document
@@ -902,6 +806,27 @@ generateBtn.addEventListener('click',async()=>{
     generateBtn.textContent='生成塔罗解读';
   }
 });
+
+
+/* =========================
+   继续追测
+   ========================= */
+followupBtn.addEventListener('click',async()=>{
+  try{
+    if(!currentSessionId||!currentMessages.length){showToast('请先完成一次初始解读');return}
+    const question=followupQuestion.value.trim(),card=followupCard.value.trim(),orientation=followupOrientation.value;
+    if(!question){showToast('请填写本次追测问题');return}
+    if(!card){showToast('请填写本次新抽到的塔罗牌');return}
+    const followText=`这是同一个客户在上一轮解读基础上的继续追测。本次只需要回答新的追测问题，不要把它当成新客户。追测问题：${question}；本次新抽到的牌：${card}（${orientation}）。请结合前面完整客户背景、之前牌面和上一轮解读继续分析。回答不允许换行和分段`;
+    const nextMessages=[...currentMessages.map(m=>({role:m.role,content:m.content})),{role:'user',content:followText}];
+    followupBtn.disabled=true;followupBtn.textContent='AI 正在追测…';
+    const result=await requestAI('',[],nextMessages);
+    currentMessages.push({role:'user',content:followText,displayText:`追测：${question}；新牌：${card}（${orientation}）`});
+    currentMessages.push({role:'assistant',content:result});
+    persistCurrentSession();renderConversation();followupQuestion.value='';followupCard.value='';output.textContent=result;empty.style.display='none';output.style.display='block';showToast('追测完成并已保存到当前会话');
+  }catch(err){console.error(err);showToast(err?.message||'追测失败')}finally{followupBtn.disabled=false;followupBtn.textContent='继续解析'}
+});
+newSessionBtn.addEventListener('click',()=>{if(confirm('确定开始一个全新的客户案例吗？当前会话已经保存到历史记录。'))startNewSession()});
 
 /* =========================
    复制
